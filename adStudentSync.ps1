@@ -53,11 +53,11 @@ $defaultPassword = ConvertTo-SecureString $Env:AD_NEW_STUDENT_PASSWORD -AsPlainT
 
 $badNames = 'Use', 'Training1','Trianing2','Trianing3','Trianing4','Planning','Admin','Nurse','User', 'Use ', 'Test', 'Testtt', 'Do Not', 'Do', 'Not', 'Tbd', 'Lunch', 'Formbuilder', 'Human', 'Teststudent' # define list of names to ignore
 
-# define our district wide employee AD groups
-$papercutGroup = "Papercut Students Group"
+# define our district wide student AD groups
+# $papercutGroup = "Papercut Students Group"
 # find the members of these district wide groups so we only have to do it once and then can reference them later
 # Get-ADGroupMember has a limit of 5000 results for users, since we have more we need to get the group properties, pipe the member properties to a find user and then select those samAccountNames. Slow but avoids the limit
-$papercutStudentMembers = Get-ADGroup $papercutGroup -Properties Member | Select-Object -ExpandProperty Member | Get-ADUser | Select-Object sAMAccountName | ForEach-Object {$_.sAMAccountName}
+# $papercutStudentMembers = Get-ADGroup $papercutGroup -Properties Member | Select-Object -ExpandProperty Member | Get-ADUser | Select-Object sAMAccountName | ForEach-Object {$_.sAMAccountName}
 # $papercutStudentMembers | Out-File -FilePath .\studentSyncLog.txt -Append # debug member list by printing
 
 # define hashtable for converting the integer grade_level to the grade string
@@ -215,22 +215,22 @@ foreach ($school in $Schools)
                     }
 
                     # Check to ensure the user is a member of the papercut student group
-                    if ($papercutStudentMembers -notcontains $adUser.samAccountName)
-                    {
-                        $message =  "      ACTION: GROUP: User $currentSamAccountName is not a member of $papercutGroup, will add them"
-                        Write-Output $message # write to console
-                        $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file
-                        try 
-                        {
-                            Add-ADGroupMember -Identity $papercutGroup -Members $adUser.samAccountName # add the user to the group
-                        }
-                        catch
-                        {
-                            $message = "     ERROR: Could not add $currentSameAccountName to $papercutGroup"
-                            Write-Output $message # write to console
-                            $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file
-                        }
-                    }
+                    # if ($papercutStudentMembers -notcontains $adUser.samAccountName)
+                    # {
+                    #     $message =  "      ACTION: GROUP: User $currentSamAccountName is not a member of $papercutGroup, will add them"
+                    #     Write-Output $message # write to console
+                    #     $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file
+                    #     try 
+                    #     {
+                    #         Add-ADGroupMember -Identity $papercutGroup -Members $adUser.samAccountName # add the user to the group
+                    #     }
+                    #     catch
+                    #     {
+                    #         $message = "     ERROR: Could not add $currentSameAccountName to $papercutGroup"
+                    #         Write-Output $message # write to console
+                    #         $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file
+                    #     }
+                    # }
 
                     # Check to ensure the user is a member of the school student group, ignoring all the non-student buildings
                     if (($schoolAbbrev -ne "O-HR") -and ($schoolAbbrev -notlike "SU?") -and ($schoolAbbrev -notlike "DNU *") -and ($schoolAbbrev -ne "Graduated Students") -and ($schoolAbbrev -ne "AUX") -and ($schoolAbbrev -ne "TRAN") -and ($schoolAbbrev -ne "MNT") -and ($schoolAbbrev -ne "PRE") -and ($schoolAbbrev -notlike "* OFF") -and ($schoolAbbrev -ne "CO"))
