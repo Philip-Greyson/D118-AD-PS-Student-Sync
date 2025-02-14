@@ -51,7 +51,7 @@ $spacer = "--------------------------------------------------" # just a spacer f
 $constantOU = $Env:CONSTANT_OU_ENDING # define the constant parts of our AD OU structure. Essentially everything after our building level
 $defaultPassword = ConvertTo-SecureString $Env:AD_NEW_STUDENT_PASSWORD -AsPlainText -Force  # define the default password used for new accounts
 
-$badNames = 'Use', 'Training1','Trianing2','Trianing3','Trianing4','Planning','Admin','Nurse','User', 'Use ', 'Test', 'Testtt', 'Do Not', 'Do', 'Not', 'Tbd', 'Lunch', 'Formbuilder', 'Human', 'Teststudent' # define list of names to ignore
+$badNames = 'Use', 'Training1','Trianing2','Trianing3','Trianing4','Planning','Admin','Nurse','User', 'Use ', 'Test', 'Testtt', 'Do Not', 'Do', 'Not', 'Tbd', 'Lunch', 'Formbuilder', 'Human', 'Teststudent', 'Cotton Creek', 'Robert Crown', 'WMS', 'WGS', 'MMS','WHS', 'New Student Test', 'Returning Student Test', 'Testmw' # define list of names to ignore
 
 # define our district wide student AD groups
 # $papercutGroup = "Papercut Students Group"
@@ -120,7 +120,7 @@ foreach ($school in $Schools)
             $userInfo = "INFO: Processing User: First: $firstName | Last: $lastName | ID: $studentNumber | Status: $status | Grade: $grade | Grade String: $gradeString"
             Write-Output $userInfo
             $userInfo | Out-File -FilePath .\studentSyncLog.txt -Append # output to the studentSyncLog.txt file
-            if (($status -eq -1) -or ($status -eq 0)) # process the active students
+            if (($status -eq -1) -or ($status -eq 0)) # process the active and pre-registered students
             {
                 $adUser = Get-ADUser -Filter {sAMAccountName -eq $samAccountName} -Properties description,homedirectory,office,mail,displayname
                 # If we find a match for the student number samName, update all their info
@@ -132,13 +132,26 @@ foreach ($school in $Schools)
                     Write-Output $message # write to console
                     $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file
 
-                    # Check to make sure their user account is enabled
-                    if (!$adUser.Enabled)
+                    # Check to make sure their user account is enabled if they are actually active. If they are pre-registered we keep them disabled but continue to update their info as normal
+                    if ($status -eq -1)  # if they are pre-registered
                     {
-                        $message = "      ACTION: ENABLE: Enabling user $currentSamAccountName - $uDCID - $email"
-                        Write-Output $message # write to console
-                        $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file 
-                        Enable-ADAccount $adUser # enables the selected account
+                        if ($adUser.Enabled)  # if theyre enabled
+                        {
+                            $message = "    ACTION: DISABLE: Disabling user $currentSamAccountName - $email because they are pre-registered"
+                            Write-Output $message # write to console
+                            $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file 
+                            Disable-ADAccount $adUser # disables the selected account
+                        }
+                    }
+                    elseif ($status -eq 0)  # if they are just nromal active
+                    {
+                        if (!$adUser.Enabled)  # if theyre disabled
+                        {
+                            $message = "      ACTION: ENABLE: Enabling user $currentSamAccountName - $email"
+                            Write-Output $message # write to console
+                            $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file 
+                            Enable-ADAccount $adUser # enables the selected account
+                        }
                     }
 
                     # Check to see if their name has changed, update the name fields
@@ -279,7 +292,7 @@ foreach ($school in $Schools)
                     # Check to see if the "Full Name" is the same as their samAccountName, if not, change it to match. Do this last otherwise it will break the other operations due to the object being renamed
                     if ($currentFullName -ne $currentSamAccountName)
                     {
-                        $message = "      ACTION: FULL NAME: Updating user $uDCID's 'full name' from $currentFullName to $currentSamAccountName"
+                        $message = "      ACTION: FULL NAME: Updating user $studentNumber 'full name' from $currentFullName to $currentSamAccountName"
                         Write-Output $message # write to console
                         $message | Out-File -FilePath .\studentSyncLog.txt -Append # write to log file 
                         Rename-ADObject $adUser -NewName $currentSamAccountName
